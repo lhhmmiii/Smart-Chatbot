@@ -2,6 +2,7 @@ import pandas as pd
 from spire.doc import *
 from spire.doc.common import *
 
+
 def convert_table_into_text(table):
   table_data = []
   for j in range(0, table.Rows.Count):
@@ -20,7 +21,7 @@ def convert_table_into_text(table):
       
   return table_text
 
-def extract_content(document_path):
+def extract_word_content(document_path):
   doc = Document()
   doc.LoadFromFile(document_path)
   section = doc.Sections[0]
@@ -41,3 +42,6 @@ def extract_content(document_path):
           section_content += table_text + '\n'
     list_section_content.append(section_content)
   return list_section_content
+
+
+
