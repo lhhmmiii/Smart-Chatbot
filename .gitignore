@@ -2,3 +2,7 @@ myenv
 Document
 .env
 model\peft-summarize-text-checkpoint-local.zip
+Process_Document\__pycache__
+__pycache__
+test.py
+model\ViT-base-summarize-text

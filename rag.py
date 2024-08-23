@@ -8,7 +8,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import WebBaseLoader
-from Process_Document import extract_word_content
+from langchain_community.document_loaders import PyPDFLoader
+from Process_Document import extract_word_content, extract_info
 
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
@@ -21,18 +22,26 @@ langchain_api_key = os.getenv('LANGCHAIN_API_KEY')
 llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-pro', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
 
 # Document loader
-list_section_content = extract_word_content('Document\Word\cccd.docx')
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=500,
-    chunk_overlap=100,
-    length_function=len,
-    is_separator_regex=False,
-)
-texts = text_splitter.create_documents(list_section_content)
+# content = ""
+# list_page_content = extract_info('Document/PDF/7698_Cac-moc-thoi-gian-KLTN-TTTN-TTDATN-K2021-SV.pdf')
+# for i, page_content in enumerate(list_page_content):
+#     content += f'**Page {i + 1}:**\n {page_content}\n'
+
+loader = PyPDFLoader('Document/PDF/7698_Cac-moc-thoi-gian-KLTN-TTTN-TTDATN-K2021-SV.pdf')
+pages = loader.load_and_split()
+
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=500,
+#     chunk_overlap=100,
+#     length_function=len,
+#     is_separator_regex=False,
+# )
+
+# texts = text_splitter.create_documents(pages)
 
 # Vectore store
 embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key=google_genai_api_key)
-vectordb = Chroma.from_documents(texts, embedding = embedding)
+vectordb = Chroma.from_documents(pages, embedding = embedding)
 retriever = vectordb.as_retriever()
 
 # Prompt
@@ -60,7 +69,7 @@ chain = (
     | StrOutputParser()
 )
 
-for chunk in chain.stream('Tờ khai gì'):
+for chunk in chain.stream('Vào ngày 01/11 thì sinh viên làm gì?'):
     print(chunk)
 
 # output = {}
