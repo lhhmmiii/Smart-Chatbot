@@ -19,8 +19,7 @@ from langchain_community.document_transformers import BeautifulSoupTransformer
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
 langchain_api_key = os.getenv('LANGCHAIN_API_KEY')
-pinecone_api_key = os.getenv('PINECONE_API_KEY')
-os.environ['PINECONE_API_KEY'] = pinecone_api_key
+
 
 template = """
 You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
