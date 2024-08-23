@@ -25,7 +25,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
 2. Create a virtual environment and activate it:
     ```bash
     python -m venv myenv
-    source myenv/bin/activate  # On Windows use `myenv\Scriptsctivate`
+    source myenv/bin/activate  # On Windows use `myenv\Scripts\activate`
     ```
 
 3. Install dependencies:
