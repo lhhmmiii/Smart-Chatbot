@@ -1,6 +1,6 @@
 # 📝 Smart-Document-Summarization-and-QA-Assistantt
 
-This repository contains a chatbot application developed using [Chainlit](https://www.chainlit.io/) and various AI-powered services. The chatbot is designed to summarize documents, web content, and user-inputted text, with a focus on Vietnamese language documents.
+This repository contains a chatbot application developed using [Chainlit](https://www.chainlit.io/) and various AI-powered services. The chatbot is designed to summarize documents, and user-inputted text, with a focus on Vietnamese language documents.
 
 ## ✨ Features
 
