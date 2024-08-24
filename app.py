@@ -1,7 +1,7 @@
 import chainlit as cl
 from chainlit.types import AskFileResponse
 from chainlit.input_widget import Select, Switch, Slider
-from Process_Document import extract_word_content, extract_info, extract_content_from_web
+from Process_Document import extract_word_content, extract_info
 from document_summarize import *
 import os
 from dotenv import load_dotenv
@@ -10,11 +10,9 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_core.output_parsers import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import Chroma, FAISS, Pinecone
+from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_community.document_loaders import PyPDFLoader, BSHTMLLoader
-from langchain_community.document_loaders import AsyncChromiumLoader
-from langchain_community.document_transformers import BeautifulSoupTransformer
+from langchain_community.document_loaders import PyPDFLoader
 
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
@@ -39,7 +37,6 @@ collection_name = set()
 async def present_actions():
     actions = [
         cl.Action(name="Summarize document", value="summarize_document", description="Summarize document"),
-        cl.Action(name="Summarize content from web", value="summarize content from web", description="Summarize content from web"),
         cl.Action(name="Summarize a text you input", value="Summarize a text you input", description="Summarize text you input"),
     ]
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
@@ -101,31 +98,6 @@ async def on_action(action):
     cl.user_session.set("docs", docs)
     cl.user_session.set("action_type", "1")
 
-## --------------------------- Nút gọi lại của tóm tắt nội dung từ trang web ------------------------------------- ##
-@cl.action_callback("Summarize content from web")
-async def on_action(action):
-    res = await cl.AskUserMessage(content = "**Nhập đường dẫn tới trang web:**", timeout=30).send()
-    if res:
-        # Loader
-        loader = AsyncChromiumLoader([res['output']])
-        html = loader.load()
-        bs_transformer = BeautifulSoupTransformer()
-        docs_transformed = bs_transformer.transform_documents(
-            html # tags_to_extract=["p", "li", "div", "a"]
-        )
-        # Content
-        content = extract_content_from_web(res['output'])
-        await cl.Message(
-            content = f"**Content:**\n {content}"
-        ).send()
-
-    summarized_document_text = summarize_document(content)
-    await cl.Message(content = f"**Nội dung tóm tắt của document:**\n {summarized_document_text}").send()
-    await action.remove()
-    await present_actions()
-    cl.user_session.set("content", content)
-    cl.user_session.set("action_type", "2")
-    cl.user_session.set("html_docs", docs_transformed)
 
 ## --------------------------- Nút gọi lại của tóm tắt nội dung mà người dùng nhập vào------------------------------------- ##
 @cl.action_callback("Summarize a text you input")
@@ -141,7 +113,7 @@ async def on_action(action):
     await action.remove()
     await present_actions()
     cl.user_session.set("content", res['output'])
-    cl.user_session.set("action_type", "3")
+    cl.user_session.set("action_type", "2")
 
 
 @cl.on_chat_start
@@ -187,8 +159,6 @@ async def on_message(message: cl.Message):
         elif file_type == 'application/pdf':
             docs = cl.user_session.get("docs")
     elif action_type == "2":
-        docs = cl.user_session.get("html_docs")
-    elif action_type == "3":
         document_text = cl.user_session.get("content")
         docs = text_splitter.create_documents([document_text])
     # Embedding content
