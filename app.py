@@ -5,7 +5,7 @@ from Process_Document import extract_word_content, extract_info
 from document_summarize import *
 import os
 from dotenv import load_dotenv
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, MessagesPlaceholder, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableConfig
 from langchain_core.output_parsers import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -13,25 +13,25 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
+## -------------------------- Lấy api từ file .env(file này tôi sẽ không public nên các bạn từ tạo theo format sau nhé) ----------------------- ##
+'''
+HUGGINGFACEHUB_API_TOKEN = ........
+GEMINI_API = .........
+LANGCHAIN_API_KEY = .............
+'''
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
 langchain_api_key = os.getenv('LANGCHAIN_API_KEY')
 
-
-template = """
-You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
-Question: {question} 
-Context: {context} 
-Document is use only vietnamese language. So, you use it to reply.
-Answer:
-"""
-
+## ---------------------- Format lại output ------------------- ##
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-uploaded_file = None
-collection_name = set()
 
 ## ---------------------- Các action của chatbot ------------------- ##
 async def present_actions():
@@ -42,6 +42,7 @@ async def present_actions():
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
 
 
+uploaded_file = None
 ## --------------------- Đoạn chat gọi lại phần tóm tắt file PDF được đưa vào ------------------ ##
 @cl.action_callback("Summarize document")
 async def on_action(action):
@@ -115,7 +116,7 @@ async def on_action(action):
     cl.user_session.set("content", res['output'])
     cl.user_session.set("action_type", "2")
 
-
+## ------------------------ Bắt đầu chatbot -------------------------- ##
 @cl.on_chat_start
 async def on_chat_start():
     settings = await cl.ChatSettings(
@@ -138,17 +139,8 @@ async def on_chat_start():
 
     await present_actions()
 
-
-
-@cl.on_message
-async def on_message(message: cl.Message):
-    llm = cl.user_session.get("LLM")
-    text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-                is_separator_regex=False,
-            )
+## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
+def get_documents_based_on_action(text_splitter):
     action_type = cl.user_session.get("action_type")
     docs = None
     if action_type == "1":
@@ -161,26 +153,54 @@ async def on_message(message: cl.Message):
     elif action_type == "2":
         document_text = cl.user_session.get("content")
         docs = text_splitter.create_documents([document_text])
-    # Embedding content
+    return docs
+
+## --------------------- Tạo retriever từ document hoặc input từ người dùng. --------------------- ##
+def create_retriever(docs):
     embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key=google_genai_api_key)
-    vectordb = FAISS.from_documents(docs, embedding = embedding)
-    retriever = vectordb.as_retriever()
-    # Prompt
+    vectordb = FAISS.from_documents(docs, embedding=embedding)
+    return vectordb.as_retriever()
+
+# Chain trả lời câu hỏi liên quan tới document
+def create_chain(retriever, llm):
+    # prompt cho việc trả lời các câu hỏi liên quan đến document. 
+    template = """
+    You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+    Question: {question} 
+    Context: {context} 
+    Document is use only vietnamese language. So, you use it to reply.
+    Answer:
+    """
     prompt = PromptTemplate.from_template(template)
-    chain = (
-    {
-        'context': retriever | format_docs,
-        'question': RunnablePassthrough()
-     }
-    | prompt
-    | llm
-    | StrOutputParser()
+    return (
+        {
+            'context': retriever | format_docs,
+            'question': RunnablePassthrough()
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
     )
+
+## -------------------- Chạy khi người dùng input ----------------- ##
+@cl.on_message
+async def on_message(message: cl.Message):
+    llm = cl.user_session.get("LLM")
+    text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len,
+                is_separator_regex=False,
+            )
+    docs = get_documents_based_on_action(text_splitter)
+    # Embedding content
+    retriever = create_retriever(docs)
+    # Chain
+    chain = create_chain(retriever, llm)
 
     msg = cl.Message(content="")
 
-    async for chunk in chain.astream(message.content):
+    async for chunk in chain.astream(message.content): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
         await msg.stream_token(chunk)
 
     await msg.send()
-
