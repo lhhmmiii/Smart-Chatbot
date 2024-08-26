@@ -1,22 +1,21 @@
+import os
+from dotenv import load_dotenv
 import chainlit as cl
-from chainlit.types import AskFileResponse
+from chainlit.types import AskFileResponse, ThreadDict
+from typing import Optional, Dict, List
 from chainlit.input_widget import Select, Switch, Slider
 from Process_Document import extract_word_content, extract_info
 from document_summarize import *
-import os
-from dotenv import load_dotenv
 from langchain_core.prompts import PromptTemplate, MessagesPlaceholder, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableConfig
 from langchain_core.output_parsers import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain.memory import ConversationBufferMemory
+from history_chatbot import *
+
 
 ## -------------------------- Lấy api từ file .env(file này tôi sẽ không public nên các bạn từ tạo theo format sau nhé) ----------------------- ##
 '''
@@ -135,7 +134,9 @@ async def on_chat_start():
     ).send()
 
     llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-pro', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
+    session_id = "ss1"
     cl.user_session.set("LLM", llm)
+    cl.user_session.set("session_id", session_id)
 
     await present_actions()
 
@@ -154,6 +155,7 @@ def get_documents_based_on_action(text_splitter):
         document_text = cl.user_session.get("content")
         docs = text_splitter.create_documents([document_text])
     return docs
+
 
 ## --------------------- Tạo retriever từ document hoặc input từ người dùng. --------------------- ##
 def create_retriever(docs):
@@ -186,6 +188,7 @@ def create_chain(retriever, llm):
 @cl.on_message
 async def on_message(message: cl.Message):
     llm = cl.user_session.get("LLM")
+    session_id = cl.user_session.get("session_id")
     text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
                 chunk_overlap=200,
@@ -196,11 +199,50 @@ async def on_message(message: cl.Message):
     # Embedding content
     retriever = create_retriever(docs)
     # Chain
-    chain = create_chain(retriever, llm)
+    conversational_rag_chain = conversational_chain(llm, retriever)
 
-    msg = cl.Message(content="")
+    answer = conversational_rag_chain.invoke(
+        {"input": message.content},
+        config={
+            "configurable": {"session_id": session_id}
+        },  # constructs a key "abc123" in `store`.
+    )["answer"]
 
-    async for chunk in chain.astream(message.content): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
-        await msg.stream_token(chunk)
+    await cl.Message(content = answer).send()
 
-    await msg.send()
+    # msg = cl.Message(content="")
+
+    # async for chunk in conversational_rag_chain.astream(
+    #     {"input": message.content},
+    #     config={
+    #         "configurable": {"session_id": session_id}
+    #     },
+    # ): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
+    #         await msg.stream_token(chunk['answer'])
+
+    # await msg.send()
+
+
+
+# @cl.on_chat_resume
+# async def on_chat_resume(thread: ThreadDict):
+#     memory = ConversationBufferMemory(return_messages=True)
+#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+#     for message in root_messages:
+#         if message["type"] == "user_message":
+#             memory.chat_memory.add_user_message(message["output"])
+#         else:
+#             memory.chat_memory.add_ai_message(message["output"])
+
+#     cl.user_session.set("memory", memory)
+
+# @cl.password_auth_callback
+# def auth_callback(username: str, password: str):
+#     # Fetch the user matching username from your database
+#     # and compare the hashed password with the value stored in the database
+#     if (username, password) == ("LHH", "1323"):
+#         return cl.User(
+#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+#         )
+#     else:
+#         return None
