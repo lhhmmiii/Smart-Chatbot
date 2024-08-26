@@ -6,8 +6,8 @@ from typing import Optional, Dict, List
 from chainlit.input_widget import Select, Switch, Slider
 from Process_Document import extract_word_content, extract_info
 from document_summarize import *
-from langchain_core.prompts import PromptTemplate, MessagesPlaceholder, ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableConfig
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
@@ -15,6 +15,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.memory import ConversationBufferMemory
 from history_chatbot import *
+from agent import *
 
 
 ## -------------------------- Lấy api từ file .env(file này tôi sẽ không public nên các bạn từ tạo theo format sau nhé) ----------------------- ##
@@ -129,7 +130,7 @@ async def on_chat_start():
     # Ảnh bìa
     image = cl.Image(path = 'Image/chatbot.png', name = 'cover_image', display = 'inline')
     await cl.Message(
-        content="Chatbot có nhiệm vụ tóm tắt document và trả lời tất cả câu hỏi liên quan tới document bạn cung cấp.\nHiện tại chatbot chỉ tóm tắt các nội dung bằng Tiếng Việt.",
+        content="**- Chatbot có nhiệm vụ tóm tắt document và trả lời tất cả câu hỏi liên quan tới document bạn cung cấp.**\n**- Hiện tại chatbot chỉ tóm tắt các nội dung bằng Tiếng Việt.**\n**- Nếu bạn muốn hỏi về các vấn đề bên ngoài document thì vẫn cứ hỏi nhưng tôi chưa chắc thông tin đó sẽ chính xác(đừng upload document or context trước khi hỏi).**",
         elements=[image],
     ).send()
 
@@ -137,6 +138,7 @@ async def on_chat_start():
     session_id = "ss1"
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
+    cl.user_session.set("action_type", "0")
 
     await present_actions()
 
@@ -163,20 +165,17 @@ def create_retriever(docs):
     vectordb = FAISS.from_documents(docs, embedding=embedding)
     return vectordb.as_retriever()
 
-# Chain trả lời câu hỏi liên quan tới document
-def create_chain(retriever, llm):
-    # prompt cho việc trả lời các câu hỏi liên quan đến document. 
+# Chain trả lời câu hỏi khi người dùng chưa đưa document hay input content vào
+def create_chain(llm):
     template = """
-    You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+    Hello! I'm your assistant. How can I assist you today? When you're ready, feel free to upload the document you'd like help with. If you have any other questions before that, don't hesitate to ask!
     Question: {question} 
-    Context: {context} 
-    Document is use only vietnamese language. So, you use it to reply.
+    You use vietnamese to reply.
     Answer:
     """
     prompt = PromptTemplate.from_template(template)
     return (
         {
-            'context': retriever | format_docs,
             'question': RunnablePassthrough()
         }
         | prompt
@@ -187,40 +186,49 @@ def create_chain(retriever, llm):
 ## -------------------- Chạy khi người dùng input ----------------- ##
 @cl.on_message
 async def on_message(message: cl.Message):
+    action_type = cl.user_session.get("action_type")
     llm = cl.user_session.get("LLM")
     session_id = cl.user_session.get("session_id")
-    text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-                is_separator_regex=False,
-            )
-    docs = get_documents_based_on_action(text_splitter)
-    # Embedding content
-    retriever = create_retriever(docs)
-    # Chain
-    conversational_rag_chain = conversational_chain(llm, retriever)
+    if action_type == "0":
+        chain = create_chain(llm)
+        msg = cl.Message("")
+        async for chunk in chain.astream(message.content):
+            await msg.stream_token(chunk)
+        
+        await msg.send()
+    else:
+        text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    length_function=len,
+                    is_separator_regex=False,
+                )
+        docs = get_documents_based_on_action(text_splitter)
+        # Embedding content
+        retriever = create_retriever(docs)
+        # Chain
+        conversational_rag_chain = conversational_chain(llm, retriever)
 
-    answer = conversational_rag_chain.invoke(
-        {"input": message.content},
-        config={
-            "configurable": {"session_id": session_id}
-        },  # constructs a key "abc123" in `store`.
-    )["answer"]
+        answer = conversational_rag_chain.invoke(
+            {"input": message.content},
+            config={
+                "configurable": {"session_id": session_id}
+            },  # constructs a key "abc123" in `store`.
+        )["answer"]
 
-    await cl.Message(content = answer).send()
+        await cl.Message(content = answer).send()
 
-    # msg = cl.Message(content="")
+        # msg = cl.Message(content="")
 
-    # async for chunk in conversational_rag_chain.astream(
-    #     {"input": message.content},
-    #     config={
-    #         "configurable": {"session_id": session_id}
-    #     },
-    # ): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
-    #         await msg.stream_token(chunk['answer'])
+        # async for chunk in conversational_rag_chain.astream(
+        #     {"input": message.content},
+        #     config={
+        #         "configurable": {"session_id": session_id}
+        #     },
+        # ): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
+        #         await msg.stream_token(chunk['answer'])
 
-    # await msg.send()
+        # await msg.send()
 
 
 

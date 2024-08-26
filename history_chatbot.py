@@ -3,8 +3,6 @@ import hashlib
 import time
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain.tools.retriever import create_retriever_tool
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -91,27 +89,12 @@ def conversational_chain(llm, retriever):
 
 
 
-# question = "What is Task Decomposition?"
-# session_id = generate_session_id(question)
-# print(session_id)
-
 # conversational_rag_chain.invoke(
 #     {"input": "What is Task Decomposition?"},
 #     config={
 #         "configurable": {"session_id": "abc123"}
 #     },  # constructs a key "abc123" in `store`.
 # )["answer"]
-
-# def my_tools(retriever):
-#     search = TavilySearchResults(max_results=2)
-#     retriever_tool = create_retriever_tool(
-#         retriever,
-#         "rag_retriever", # name
-#         "Searches information from my documents", # description
-#     )
-#     tools = [retriever_tool, search]
-
-#     return tools
 
 # # ------------------------------------------------------------------------ #
 # import os
