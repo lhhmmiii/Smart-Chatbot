@@ -17,7 +17,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/document-summarization-chatbot.git
+    git clone https://github.com/lhhmmiii/Smart-Document-Summarization-and-QA-Assistant.git
     cd document-summarization-chatbot
     ```
 
