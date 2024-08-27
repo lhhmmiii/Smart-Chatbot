@@ -233,17 +233,17 @@ async def on_message(message: cl.Message):
 
 
 
-# @cl.on_chat_resume
-# async def on_chat_resume(thread: ThreadDict):
-#     memory = ConversationBufferMemory(return_messages=True)
-#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-#     for message in root_messages:
-#         if message["type"] == "user_message":
-#             memory.chat_memory.add_user_message(message["output"])
-#         else:
-#             memory.chat_memory.add_ai_message(message["output"])
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    memory = ConversationBufferMemory(return_messages=True)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.chat_memory.add_user_message(message["output"])
+        else:
+            memory.chat_memory.add_ai_message(message["output"])
 
-#     cl.user_session.set("memory", memory)
+    cl.user_session.set("memory", memory)
 
 # @cl.password_auth_callback #
 # def auth_callback(username: str, password: str):
