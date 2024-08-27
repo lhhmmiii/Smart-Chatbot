@@ -136,6 +136,7 @@ async def on_chat_start():
 
     llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-pro', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
     session_id = "ss1"
+    # Lưu các user session
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
     cl.user_session.set("action_type", "0")
@@ -213,7 +214,7 @@ async def on_message(message: cl.Message):
             {"input": message.content},
             config={
                 "configurable": {"session_id": session_id}
-            },  # constructs a key "abc123" in `store`.
+            },
         )["answer"]
 
         await cl.Message(content = answer).send()
@@ -244,13 +245,13 @@ async def on_message(message: cl.Message):
 
 #     cl.user_session.set("memory", memory)
 
-@cl.password_auth_callback #
-def auth_callback(username: str, password: str):
-    # Fetch the user matching username from your database
-    # and compare the hashed password with the value stored in the database
-    if (username, password) == ("LHH", "1323"):
-        return cl.User(
-            identifier="admin", metadata={"role": "admin", "provider": "credentials"}
-        )
-    else:
-        return None
+# @cl.password_auth_callback #
+# def auth_callback(username: str, password: str):
+#     # Fetch the user matching username from your database
+#     # and compare the hashed password with the value stored in the database
+#     if (username, password) == ("LHH", "1323"):
+#         return cl.User(
+#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+#         )
+#     else:
+#         return None
