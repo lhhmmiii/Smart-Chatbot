@@ -1,6 +1,5 @@
 import os
-import hashlib
-import time
+from operator import itemgetter
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -8,8 +7,11 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage
-
+from langchain.schema.runnable import Runnable, RunnablePassthrough, RunnableLambda
+from langchain.schema.runnable.config import RunnableConfig
+from langchain.memory import ConversationBufferMemory
 
 load_dotenv()
 os.environ['TAVILY_API_KEY'] = os.getenv("TAVILY_API_KEY")
@@ -23,14 +25,22 @@ def question_answering_chain(llm):
     {context}
     """
 
-    prompt1 = ChatPromptTemplate.from_messages(
+    prompt = ChatPromptTemplate.from_messages(
         [
             ("system", template_prompt),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}"),
         ]
     )
-    qa_chain = create_stuff_documents_chain(llm, prompt1)
+    # qa_chain = (
+    #     RunnablePassthrough.assign(
+    #         history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
+    #     )
+    #     | prompt
+    #     | llm
+    #     | StrOutputParser()
+    # )
+    qa_chain = create_stuff_documents_chain(llm, prompt)
     return qa_chain
 
 
