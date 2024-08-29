@@ -306,10 +306,13 @@ async def on_message(message: cl.Message):
             input=message.content, callbacks=[cl.LangchainCallbackHandler()]
         )
 
+        image_name = res['output']
+
         elements = [
             cl.Image(
-                content = "This message has an image!",
-                name = "1",
+                path = f"Image/Output/{image_name}",
+                content = "Image created by above prompt",
+                name = image_name,
                 display = "inline",
             )
         ]
