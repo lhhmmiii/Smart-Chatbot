@@ -90,6 +90,7 @@ def my_tools():
         description="Useful to edit an image with a prompt. Works well with commands such as 'replace', 'add', 'change', 'remove'.",
         return_direct=True,
     )
-    tools = [generate_image_tool, generate_image_tool]
+
+    tools = [generate_image_tool, edit_image_tool]
 
     return tools

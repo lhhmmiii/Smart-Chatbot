@@ -237,11 +237,13 @@ def create_chain(llm):
 ## -------------------- Chạy khi người dùng input ----------------- ##
 @cl.on_message
 async def on_message(message: cl.Message):
+    # Lấy các user session
     action_type = cl.user_session.get("action_type")
     llm = cl.user_session.get("LLM")
     session_id = cl.user_session.get("session_id")
     tools = cl.user_session.get("tools")
     memory = cl.user_session.get("memory")
+    # await cl.Message(content = f"{action_type}_{llm}_{tools}_{memory}").send()
     # Khi chưa import document
     if action_type == "0":
         chain = create_chain(llm)
@@ -258,8 +260,8 @@ async def on_message(message: cl.Message):
                     is_separator_regex=False,
                 )
         docs = get_documents_based_on_action(text_splitter)
+        retriever = None
         if docs == None:
-            await cl.Message(content="11111111111111111111").send()
             retriever = load_vectordb(session_id)
         else:
             retriever = create_retriever(docs, session_id)
@@ -296,7 +298,7 @@ async def on_message(message: cl.Message):
             llm = llm,
             tools = tools,
             agent = AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-            # memory = memory,
+            memory = memory,
             agent_kwargs = {
                 # "suffix": _SUFFIX,
                 "input_variables": ["input", "agent_scratchpad", "chat_history"],
@@ -307,7 +309,6 @@ async def on_message(message: cl.Message):
         )
 
         image_name = res['output']
-
         elements = [
             cl.Image(
                 path = f"Image/Output/{image_name}",
@@ -317,29 +318,40 @@ async def on_message(message: cl.Message):
             )
         ]
 
-        await cl.Message(content=res, elements=elements).send()
+        await cl.Message(content = image_name, elements=elements).send()
         
 
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    cl.user_session.set("is_resume", True)
+    settings = await cl.ChatSettings(
+    [
+        Select(id="Model",label="Gemini - Model",
+            values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
+            initial_index = 0,
+        ),
+        Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
+        Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
+        Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
+    ]).send()
+    model_name = settings['Model']
+    llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
+    cl.user_session.set("LLM",llm)
+    #
+    memory = ConversationBufferMemory(return_messages=True)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.chat_memory.add_user_message(message["output"])
+        else:
+            memory.chat_memory.add_ai_message(message["output"])
 
-# @cl.on_chat_resume
-# async def on_chat_resume(thread: ThreadDict):
-#     cl.user_session.set("is_resume", True)
-#     docs = cl.user_session.get("docs")
-#     await cl.Message(content = docs).send()
-#     memory = ConversationBufferMemory(return_messages=True)
-#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-#     for message in root_messages:
-#         if message["type"] == "user_message":
-#             memory.chat_memory.add_user_message(message["output"])
-#         else:
-#             memory.chat_memory.add_ai_message(message["output"])
-
-#     cl.user_session.set("memory", memory)
+    cl.user_session.set("memory", memory)
 
 
-# @cl.password_auth_callback
-# def auth():
-#     return cl.User(identifier="test")
+@cl.password_auth_callback
+def auth():
+    return cl.User(identifier="test")
 
 # @cl.password_auth_callback #
 # def auth_callback(username: str, password: str):
