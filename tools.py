@@ -9,7 +9,10 @@ import chainlit as cl
 from dotenv import load_dotenv
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents import create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain import hub
 
 load_dotenv()
 os.environ["STABILITY_HOST"] = "grpc.stability.ai:443"
@@ -69,8 +72,35 @@ def edit_image(init_image_name: str, prompt: str):
 
     return f"Here is {image_name} based on {init_image_name}."
 
+def create_chain(llm):
+    template = """
+    Hello! I'm your assistant. How can I assist you today? When you're ready, feel free to upload the document you'd like help with. If you have any other questions before that, don't hesitate to ask!
+    You use vietnamese to reply.
+    """
+    prompt = ChatPromptTemplate.from_messages([
+        ("system",template),
+        ("user", "{input}"),
+    ])
 
-def my_tools():
+    return (
+        prompt
+        | llm
+        | StrOutputParser()
+    )
+
+def normal_tools(llm):
+    '''
+    Tool này sẽ được sử dụng khi người dùng không chọn bất cứ action nào.
+    '''
+    chain = create_chain(llm)
+    qa_tool = chain.as_tool(
+        name="qa_tool", description="Your task is that use your knowledge to answer the questions from user. If you don't know answer, don't answer."
+    )
+    search = TavilySearchResults(search = 2)
+    tools = [qa_tool, search]
+    return tools
+
+def image_tools():
     # search = TavilySearchResults(max_results=2)
     # retriever_tool = create_retriever_tool(
     #     retriever,

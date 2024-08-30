@@ -7,15 +7,12 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage
-from langchain.schema.runnable import Runnable, RunnablePassthrough, RunnableLambda
-from langchain.schema.runnable.config import RunnableConfig
-from langchain.memory import ConversationBufferMemory
+
 
 load_dotenv()
 os.environ['TAVILY_API_KEY'] = os.getenv("TAVILY_API_KEY")
 
+# ------------------------------ Conversional Chatbot when it have retriever ------------------------------- #
 def question_answering_chain(llm):
     # Template prompt này dùng để trả lời các câu hỏi liên quan tới document
     template_prompt = """
@@ -32,14 +29,6 @@ def question_answering_chain(llm):
             ("human", "{input}"),
         ]
     )
-    # qa_chain = (
-    #     RunnablePassthrough.assign(
-    #         history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
-    #     )
-    #     | prompt
-    #     | llm
-    #     | StrOutputParser()
-    # )
     qa_chain = create_stuff_documents_chain(llm, prompt)
     return qa_chain
 
@@ -98,7 +87,6 @@ def conversational_chain(llm, retriever):
     return conversational_rag_chain
 
 
-
 # conversational_rag_chain.invoke(
 #     {"input": "What is Task Decomposition?"},
 #     config={
@@ -106,27 +94,19 @@ def conversational_chain(llm, retriever):
 #     },  # constructs a key "abc123" in `store`.
 # )["answer"]
 
+
 # # ------------------------------------------------------------------------ #
-# import os
-# from dotenv import load_dotenv
-# import chainlit as cl
-# from chainlit.types import AskFileResponse, ThreadDict
-# from typing import Optional, Dict, List
-# from chainlit.input_widget import Select, Switch, Slider
-# from Process_Document import extract_word_content, extract_info
-# from document_summarize import *
 # from langchain_core.prompts import PromptTemplate, MessagesPlaceholder, ChatPromptTemplate
 # from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableConfig
 # from langchain_core.output_parsers import StrOutputParser
 # from langchain.text_splitter import RecursiveCharacterTextSplitter
 # from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 # from langchain_community.vectorstores import FAISS
-# from langchain_community.document_loaders import PyPDFLoader
-# from langchain.memory import ConversationBufferMemory
 # from langchain_community.document_loaders import WebBaseLoader
 
+
 # google_genai_api_key = os.getenv('GEMINI_API')
-# llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-pro', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
+# llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-flash', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
 # loader = WebBaseLoader(
 #     web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
 # )
