@@ -5,7 +5,6 @@ from chainlit.types import AskFileResponse, ThreadDict
 from typing import Optional, Dict, List
 from chainlit.input_widget import Select, Switch, Slider
 from Process_Document import extract_word_content, extract_info
-from document_summarize import *
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -40,7 +39,6 @@ async def present_actions():
     actions = [
         cl.Action(name="Summarize document", value="summarize_document", description="Summarize document"),
         cl.Action(name="Summarize a text you input", value="Summarize a text you input", description="Summarize text you input"),
-        cl.Action(name =  "Generate and edit image", value = "image", description = "Generate and edit image from prompt"),
     ]
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
 
@@ -132,14 +130,6 @@ async def on_action(action):
     # Lưu docs vô memory
     memory.chat_memory.add_user_message(res['output'])
 
-@cl.action_callback("Generate and edit image")
-async def on_action(action):
-    await action.remove()
-    await present_actions()
-    # Lưu user session
-    cl.user_session.set("action_type", "3")
-
-
 # Đặt tên session cho mỗi đoạn chat
 def create_session_id():
     session_id = str(uuid.uuid4())
@@ -170,7 +160,6 @@ async def on_chat_start():
     model_name = settings['Model']
     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
     session_id = create_session_id()
-    await cl.Message(content = session_id).send()
     tools = image_tools()
     # Lưu các user session
     cl.user_session.set("LLM", llm)
@@ -228,12 +217,25 @@ async def on_message(message: cl.Message):
     # await cl.Message(content = f"{action_type}_{llm}_{tools}_{memory}").send()
     # Khi chưa import document
     if action_type == "0":
-        tools_0 = normal_tools(llm)
+        tools_0 = my_tools(llm)
         prompt = hub.pull("hwchase17/openai-functions-agent")
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, tools=tools_0)
+        agent_executor = AgentExecutor(agent = agent, tools = tools_0)
         res = agent_executor.invoke({"input": message.content})
-        await cl.Message(content = res["output"]).send()
+        answer = res["output"]
+        if ".png" in answer:
+            elements = [
+            cl.Image(
+                path = f"Image/Output/{answer}",
+                content = "Image created by above prompt",
+                name = answer,
+                display = "inline",
+            )
+            ]
+
+            await cl.Message(content = answer, elements=elements).send()
+        else:
+            await cl.Message(content = answer).send()
     # Khi đã import document
     elif action_type in ["1", "2"]:
         text_splitter = RecursiveCharacterTextSplitter(
@@ -275,35 +277,6 @@ async def on_message(message: cl.Message):
         memory.chat_memory.add_user_message(message.content)
         memory.chat_memory.add_ai_message(answer)
 
-    elif action_type == "3":
-        # _SUFFIX = "Chat history:\n{chat_history}\n\n" + SUFFIX
-        agent = initialize_agent(
-            llm = llm,
-            tools = tools,
-            agent = AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-            memory = memory,
-            agent_kwargs = {
-                # "suffix": _SUFFIX,
-                "input_variables": ["input", "agent_scratchpad", "chat_history"],
-            },
-        )
-
-        res = await cl.make_async(agent.invoke)(
-            input=message.content, callbacks=[cl.LangchainCallbackHandler()]
-        )
-
-        image_name = res['output']
-        elements = [
-            cl.Image(
-                path = f"Image/Output/{image_name}",
-                content = "Image created by above prompt",
-                name = image_name,
-                display = "inline",
-            )
-        ]
-
-        await cl.Message(content = image_name, elements=elements).send()
-        
 
 # @cl.on_chat_resume
 # async def on_chat_resume(thread: ThreadDict):
