@@ -38,7 +38,6 @@ langchain_api_key = os.getenv('LANGCHAIN_API_KEY')
 async def present_actions():
     actions = [
         cl.Action(name="Summarize document", value="summarize_document", description="Summarize document"),
-        cl.Action(name="Summarize a text you input", value="Summarize a text you input", description="Summarize text you input"),
     ]
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
 
@@ -110,26 +109,6 @@ async def on_action(action):
     memory.chat_memory.add_user_message(docs)
 
 
-## --------------------------- Nút gọi lại của tóm tắt nội dung mà người dùng nhập vào------------------------------------- ##
-@cl.action_callback("Summarize a text you input")
-async def on_action(action):
-    memory = cl.user_session.get("memory")
-    res = await cl.AskUserMessage(content = "**Nhập nội dung bạn muốn tóm tắt:**", timeout=30).send()
-    if res:
-        await cl.Message(
-            content=f"**Content:**\n {res['output']}",
-        ).send()
-
-    summarized_document_text = summarize_document(res['output'])
-    await cl.Message(content = f"**Nội dung tóm tắt của document:**\n {summarized_document_text}").send()
-    await action.remove()
-    await present_actions()
-    # Lưu user session
-    cl.user_session.set("content", res['output'])
-    cl.user_session.set("action_type", "2")
-    # Lưu docs vô memory
-    memory.chat_memory.add_user_message(res['output'])
-
 # Đặt tên session cho mỗi đoạn chat
 def create_session_id():
     session_id = str(uuid.uuid4())
@@ -169,24 +148,17 @@ async def on_chat_start():
     await present_actions()
 
 ## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
-def get_documents_based_on_action(text_splitter):
-    action_type = cl.user_session.get("action_type")
+def get_documents(text_splitter):
     is_resume = cl.user_session.get("is_resume")
     docs = None
-    if action_type == "1" and not is_resume:
-        print("44444444444444444444444")
+    if not is_resume:
         file_type = cl.user_session.get("type")
         if file_type == "text/plain":
             document_text = cl.user_session.get("content")
             docs = text_splitter.create_documents([document_text])
         elif file_type == 'application/pdf':
             docs = cl.user_session.get("docs")
-            print("11111111111111111111111111111111", docs)
             cl.user_session.set("docs", docs)
-    elif action_type == "2" and not is_resume:
-        document_text = cl.user_session.get("content")
-        docs = text_splitter.create_documents([document_text])
-        cl.user_session.set("docs", docs)
     return docs
 
 ## --------------------- Tạo retriever từ document hoặc input từ người dùng. --------------------- ##
@@ -236,15 +208,16 @@ async def on_message(message: cl.Message):
             await cl.Message(content = answer, elements=elements).send()
         else:
             await cl.Message(content = answer).send()
+
     # Khi đã import document
-    elif action_type in ["1", "2"]:
+    elif action_type == "1":
         text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
                     chunk_overlap=200,
                     length_function=len,
                     is_separator_regex=False,
                 )
-        docs = get_documents_based_on_action(text_splitter)
+        docs = get_documents(text_splitter)
         retriever = None
         if docs == None:
             retriever = load_vectordb(session_id)
@@ -278,37 +251,37 @@ async def on_message(message: cl.Message):
         memory.chat_memory.add_ai_message(answer)
 
 
-# @cl.on_chat_resume
-# async def on_chat_resume(thread: ThreadDict):
-#     cl.user_session.set("is_resume", True)
-#     settings = await cl.ChatSettings(
-#     [
-#         Select(id="Model",label="Gemini - Model",
-#             values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
-#             initial_index = 0,
-#         ),
-#         Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
-#         Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
-#         Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
-#     ]).send()
-#     model_name = settings['Model']
-#     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
-#     cl.user_session.set("LLM",llm)
-#     #
-#     memory = ConversationBufferMemory(return_messages=True)
-#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-#     for message in root_messages:
-#         if message["type"] == "user_message":
-#             memory.chat_memory.add_user_message(message["output"])
-#         else:
-#             memory.chat_memory.add_ai_message(message["output"])
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    cl.user_session.set("is_resume", True)
+    settings = await cl.ChatSettings(
+    [
+        Select(id="Model",label="Gemini - Model",
+            values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
+            initial_index = 0,
+        ),
+        Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
+        Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
+        Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
+    ]).send()
+    model_name = settings['Model']
+    llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
+    cl.user_session.set("LLM",llm)
+    #
+    memory = ConversationBufferMemory(return_messages=True)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.chat_memory.add_user_message(message["output"])
+        else:
+            memory.chat_memory.add_ai_message(message["output"])
 
-#     cl.user_session.set("memory", memory)
+    cl.user_session.set("memory", memory)
 
 
-# @cl.password_auth_callback
-# def auth():
-#     return cl.User(identifier="test")
+@cl.password_auth_callback
+def auth():
+    return cl.User(identifier="test")
 
 # @cl.password_auth_callback #
 # def auth_callback(username: str, password: str):
