@@ -59,8 +59,9 @@ This repository contains a chatbot application developed using [Chainlit](https:
 - **`app.py`:** The main entry point for the chatbot application.
 - **`Process_Document.py`:** Contains functions for document processing.
 - **`document_summarize.py`:** Summarization functions used by the chatbot.
-- **`Image/`:** Directory containing images used in the chatbot interface.
-- **`Document/`:** Directory for storing sample documents.
+- **`Image/`:** Directory containing images used in the chatbot interface or generated image.
+- **`tools.py`:** contain tools which agent choose
+- **`history_chatbot.py`:** history of chatbot
 - **`requirements.txt`:** List of required Python libraries.
 
 ## 🤖 Technologies Used
