@@ -1,12 +1,14 @@
 # 📝 Smart-Document-Summarization-and-QA-Assistantt
 
-This repository contains a chatbot application developed using [Chainlit](https://www.chainlit.io/) and various AI-powered services. The chatbot is designed to summarize documents, and user-inputted text, with a focus on Vietnamese language documents.
+This repository contains a chatbot application developed using [Chainlit](https://www.chainlit.io/) and various AI-powered services. This chatbot can respond to generate and edit photos, can summarize text from users, and can answer document-related questions.
 
 ## ✨ Features
 
-- **Summarize Documents:** Upload PDF, Word, or text files, and the chatbot will summarize the content.
-- **Summarize User Input:** Input any text, and the chatbot will provide a concise summary.
-- **Vietnamese Language Support:** The chatbot is optimized for handling documents and content in Vietnamese.
+- **Summarize Content** Upload PDF, Word, or text files, and the chatbot will summarize the content. (The chatbot is optimized for handling documents and content in Vietnamese.)
+- **Document QA:** The task of answering questions based on the content of a document using AI to understand and extract relevant information.
+- **Generative and edit image:** The process of creating or modifying images using AI based on user-provided descriptions or instructions.
+
+## Pipeline
 
 ## 📋 Prerequisites
 
@@ -17,8 +19,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/lhhmmiii/Smart-Document-Summarization-and-QA-Assistant.git
-    cd document-summarization-chatbot
+    git clone https://github.com/lhhmmiii/Smart-Chatbot.git
     ```
 
 2. Create a virtual environment and activate it:
@@ -48,8 +49,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
     ```
 
 2. Interact with the chatbot through the interface:
-    - **Summarize Document:** Upload a PDF, Word, or text file for summarization.
-    - **Summarize User Input:** Enter any text to receive a summary.
+    - **User Input:** If you want to summarize text then put text in and add command to summarize text, same with generating and editing images. (I use agent to do this task)
     - **Document QA:** Enter any question related to the document.
 
 3. The chatbot will guide you through actions and provide summaries directly in the chat interface.
@@ -77,7 +77,6 @@ Feel free to modify the `template` in `app.py` to adjust the chatbot's prompt an
 
 ## 📈 Next Steps
 
-- **User Question Suggestions:** Enhance the chatbot by suggesting potential questions that users can ask based on the content provided. This can improve user experience by guiding them to ask relevant and meaningful questions.
 
 ## 📧 Contact
 
