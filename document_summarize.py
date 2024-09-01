@@ -30,3 +30,4 @@ def summarize_document(text):
     peft_model_outputs = peft_model.generate(input_ids=input_ids, generation_config=GenerationConfig(max_new_tokens=1000, num_beans = 1))
     summarized_document = tokenizer.decode(peft_model_outputs[0], skip_special_tokens=True)
     return summarized_document
+

@@ -65,7 +65,7 @@ def extract_table(page_content, table):
   combined_content = f"{new_content}{table_text}"
   return combined_content
 
-def extract_info(pdf_path, html_file_path = "Document\HTML\output.html"):
+def extract_info(pdf_path, html_file_path = "output.html"):
     tables = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
     convert_pdf_to_html(pdf_path, html_file_path)
     with open(html_file_path, 'r', encoding='utf-8') as html_file:
@@ -89,5 +89,3 @@ def extract_info(pdf_path, html_file_path = "Document\HTML\output.html"):
         list_page_content.append(content)
 
     return list_page_content
-
-list_page_content = extract_info('Document\PDF\K2021-Danh sach tien quyet va hoc truoc-DHCQ.pdf')
