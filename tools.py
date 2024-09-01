@@ -31,9 +31,12 @@ stability_api = client.StabilityInference(
 )
 
 def create_image(prompt, init_image = None): # Nếu init_image = None thì là generate, còn không thì là edit
-# Set up our initial generation parameters.
+    start_schedule = 0.8 if init_image else 1
+    # Set up our initial generation parameters.
     answers = stability_api.generate(
         prompt = prompt,
+        init_image=init_image, # init image for edit
+        start_schedule=start_schedule,
         seed=4253978046, # If a seed is provided, the resulting generated image will be deterministic.
                         # What this means is that as long as all generation parameters remain the same, you can always recall the same image simply by generating it again.
                         # Note: This isn't quite the case for Clip Guided generations, which we'll tackle in a future example notebook.
@@ -62,21 +65,23 @@ def create_image(prompt, init_image = None): # Nếu init_image = None thì là 
                 name = str(artifact.seed)+ ".png"
                 image_save_path = f"Image/Output/{name}"
                 img.save(image_save_path) # Save our generated images with their seed number as the filename.
+                cl.user_session.set(name, artifact.binary)
     return name
 
 def generate_image(prompt):
+    print("00000000000000000000000000000000000")
     img_name = create_image(prompt)
     return img_name
 
-def edit_image(init_image_name: str, prompt: str):
-    init_image_bytes = cl.user_session.get(init_image_name)
+def edit_image(prompt: str):
+    print("1111111111111111111111111111111111111111111111111")
+    init_image_bytes = cl.user_session.get("4253978046.png")
     if init_image_bytes is None:
-        raise ValueError(f"Could not find image `{init_image_name}`.")
+        raise ValueError(f"Could not find image init_image_name.")
 
     init_image = Image.open(io.BytesIO(init_image_bytes))
     image_name = create_image(prompt, init_image)
-
-    return f"Here is {image_name} based on {init_image_name}."
+    return image_name
 
 def create_chain(llm):
     template = """
