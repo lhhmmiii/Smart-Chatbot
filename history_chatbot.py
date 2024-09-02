@@ -1,5 +1,5 @@
 import os
-from operator import itemgetter
+import pickle
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -7,8 +7,6 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
-import chainlit as cl
-
 
 load_dotenv()
 os.environ['TAVILY_API_KEY'] = os.getenv("TAVILY_API_KEY")
@@ -66,12 +64,24 @@ def chat_retriever_chain(llm, retriever):
     '''
     return history_aware_retriever
 
-
 history_store = {}
+
+def save_history_store(file_path = "Database/history_store.pkl"):
+    print(".............djfkjgjhhhhhhhhhhkf")
+    with open(file_path, 'wb') as file:
+        pickle.dump(history_store, file)
+
+def load_history_store(file_path =  "Database/history_store.pkl"):
+    global history_store
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as file:
+            history_store = pickle.load(file)
+
+
 def get_session_history(session_id) -> BaseChatMessageHistory:
+    load_history_store()
     if session_id not in history_store:
         history_store[session_id] = ChatMessageHistory()
-    cl.user_session.set("history_session", history_store[session_id])
     return history_store[session_id]
 
 

@@ -140,6 +140,7 @@ async def on_chat_start():
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
     cl.user_session.set("action_type", "0")
+    cl.user_session.set("history_store", {})
     await present_actions()
 
 ## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
@@ -199,6 +200,7 @@ async def on_message(message: cl.Message):
                 "configurable": {"session_id": session_id}
                 }
             )
+        save_history_store()
         answer = res["output"]
         if ".png" in answer:
             elements = [
@@ -239,9 +241,9 @@ async def on_message(message: cl.Message):
 
         await cl.Message(content = answer).send()
 
+        # Lưu lịch sửa hội thoại
         memory.chat_memory.add_user_message(message.content)
         memory.chat_memory.add_ai_message(answer)
-
 
 @cl.on_chat_resume
 async def on_chat_resume(thread: ThreadDict):
@@ -259,6 +261,8 @@ async def on_chat_resume(thread: ThreadDict):
     model_name = settings['Model']
     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
     cl.user_session.set("LLM", llm)
+    session_id = cl.user_session.get("session_id")
+    
     #
     memory = ConversationBufferMemory(return_messages=True)
     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
