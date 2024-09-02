@@ -69,6 +69,8 @@ langchain-core==0.2.37
 langchain-google-genai==1.0.10
 langchain-text-splitters==0.2.2
 langchainhub==0.1.21
+langgraph==0.2.16
+langgraph-checkpoint==1.0.8
 langsmith==0.1.108
 Lazify==0.4.0
 literalai==0.0.607
