@@ -10,7 +10,7 @@ import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from langchain.tools import StructuredTool, Tool
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain.tools.retriever import create_retriever_tool
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -62,7 +62,7 @@ def create_image(prompt, init_image = None): # Nếu init_image = None thì là 
                     "Please modify the prompt and try again.")
             if artifact.type == generation.ARTIFACT_IMAGE:
                 img = Image.open(io.BytesIO(artifact.binary))
-                name = str(artifact.seed)+ ".png"
+                name = "image.png"
                 image_save_path = f"Image/Output/{name}"
                 img.save(image_save_path) # Save our generated images with their seed number as the filename.
                 cl.user_session.set(name, artifact.binary)
@@ -75,7 +75,7 @@ def generate_image(prompt):
 
 def edit_image(prompt: str):
     print("1111111111111111111111111111111111111111111111111")
-    init_image_bytes = cl.user_session.get("4253978046.png")
+    init_image_bytes = cl.user_session.get("image.png")
     if init_image_bytes is None:
         raise ValueError(f"Could not find image init_image_name.")
 
@@ -85,20 +85,22 @@ def edit_image(prompt: str):
 
 def create_chain(llm):
     template = """
-    Hello! I'm your assistant. How can I assist you today? When you're ready, feel free to upload the document you'd like help with. If you have any other questions before that, don't hesitate to ask!
-    You use vietnamese to reply.
+    Hello! I'm your assistant. If you have any other questions before that, don't hesitate to ask! You use Vietnamese to reply.
+    If you don't have an immediate answer, I'll retrieve our chat history to better assist you.
+    If you don't still have answer, say I don't have answer.
     """
     prompt = ChatPromptTemplate.from_messages([
-        ("system",template),
+        ("system", template),
+        MessagesPlaceholder("chat_history"),
         ("user", "{input}"),
     ])
 
-    return (
+    chain =  (
         prompt
         | llm
         | StrOutputParser()
     )
-
+    return chain
 
 def image_tools():
     generate_image_tool = Tool.from_function(
@@ -125,7 +127,7 @@ def my_tools(llm):
     qa_tool = chain.as_tool(
         name="qa_tool", description="Your task is that use your knowledge to answer the questions from user. If you don't know answer, don't answer."
     )
-    search = TavilySearchResults(search = 2)
+    search = TavilySearchResults(search = 1)
 
     generate_image_tool = Tool.from_function(
         func = generate_image,
@@ -151,4 +153,3 @@ def my_tools(llm):
 # agent_executor = AgentExecutor(agent=agent, tools=tools)
 # res = agent_executor.invoke({"input": "create image include black cat and dog at the beach"})
 # print(res)
-

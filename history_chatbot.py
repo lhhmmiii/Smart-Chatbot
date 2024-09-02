@@ -7,12 +7,13 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
+import chainlit as cl
 
 
 load_dotenv()
 os.environ['TAVILY_API_KEY'] = os.getenv("TAVILY_API_KEY")
 
-# ------------------------------ Conversional Chatbot when it have retriever ------------------------------- #
+# ------------------------------ Conversional Chatbot when it have retriever(document) ------------------------------- #
 def question_answering_chain(llm):
     # Template prompt này dùng để trả lời các câu hỏi liên quan tới document
     template_prompt = """
@@ -70,6 +71,7 @@ history_store = {}
 def get_session_history(session_id) -> BaseChatMessageHistory:
     if session_id not in history_store:
         history_store[session_id] = ChatMessageHistory()
+    cl.user_session.set("history_session", history_store[session_id])
     return history_store[session_id]
 
 

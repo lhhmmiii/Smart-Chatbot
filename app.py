@@ -2,19 +2,15 @@ import os
 from dotenv import load_dotenv
 import chainlit as cl
 from chainlit.types import AskFileResponse, ThreadDict
-from typing import Optional, Dict, List
 from chainlit.input_widget import Select, Switch, Slider
 from Process_Document import extract_word_content, extract_info
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.memory import ConversationBufferMemory
 from langchain import hub
-from langchain.agents import AgentExecutor, AgentType, initialize_agent # The agent executor is the runtime for an agent. This is what actually calls the agent, executes the actions it chooses, passes the action outputs back to the agent, and repeats. In pseudocode, this looks roughly like:
+from langchain.agents import AgentExecutor # The agent executor is the runtime for an agent. This is what actually calls the agent, executes the actions it chooses, passes the action outputs back to the agent, and repeats.
 from langchain.agents.structured_chat.prompt import SUFFIX
 from history_chatbot import *
 from tools import *
@@ -31,7 +27,6 @@ CHAINLIT_AUTH_SECRET = ..............
 '''
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
-
 
 ## ---------------------- Các action của chatbot ------------------- ##
 async def present_actions():
@@ -137,12 +132,11 @@ async def on_chat_start():
     model_name = settings['Model']
     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
     session_id = create_session_id()
-    tools = image_tools()
     # Lưu các user session
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
-    cl.user_session.set("tools", tools)
     cl.user_session.set("action_type", "0")
+    cl.user_session.set("chat_history", [])
     await present_actions()
 
 ## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
@@ -182,16 +176,27 @@ async def on_message(message: cl.Message):
     action_type = cl.user_session.get("action_type")
     llm = cl.user_session.get("LLM")
     session_id = cl.user_session.get("session_id")
-    tools = cl.user_session.get("tools")
     memory = cl.user_session.get("memory")
+    chat_history = cl.user_session.get("chat_history")
     # await cl.Message(content = f"{action_type}_{llm}_{tools}_{memory}").send()
     # Khi chưa import document
     if action_type == "0":
-        tools_0 = my_tools(llm)
+        tools = my_tools(llm)
         prompt = hub.pull("hwchase17/openai-functions-agent")
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent = agent, tools = tools_0)
-        res = agent_executor.invoke({"input": message.content})
+        agent_executor = AgentExecutor(agent = agent, tools = tools)
+        agent_with_chat_history = RunnableWithMessageHistory(
+            agent_executor,
+            get_session_history,
+            input_messages_key="input",
+            history_messages_key="chat_history",
+        )
+        res = agent_with_chat_history.invoke(
+            {"input": message.content}, 
+            config= {
+                "configurable": {"session_id": session_id}
+                }
+            )
         answer = res["output"]
         if ".png" in answer:
             elements = [
@@ -249,45 +254,41 @@ async def on_message(message: cl.Message):
         memory.chat_memory.add_ai_message(answer)
 
 
-# @cl.on_chat_resume
-# async def on_chat_resume(thread: ThreadDict):
-#     cl.user_session.set("is_resume", True)
-#     settings = await cl.ChatSettings(
-#     [
-#         Select(id="Model",label="Gemini - Model",
-#             values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
-#             initial_index = 0,
-#         ),
-#         Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
-#         Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
-#         Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
-#     ]).send()
-#     model_name = settings['Model']
-#     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
-#     cl.user_session.set("LLM",llm)
-#     #
-#     memory = ConversationBufferMemory(return_messages=True)
-#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-#     for message in root_messages:
-#         if message["type"] == "user_message":
-#             memory.chat_memory.add_user_message(message["output"])
-#         else:
-#             memory.chat_memory.add_ai_message(message["output"])
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    cl.user_session.set("is_resume", True)
+    settings = await cl.ChatSettings(
+    [
+        Select(id="Model",label="Gemini - Model",
+            values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
+            initial_index = 0,
+        ),
+        Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
+        Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
+        Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
+    ]).send()
+    model_name = settings['Model']
+    llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
+    cl.user_session.set("LLM",llm)
+    #
+    memory = ConversationBufferMemory(return_messages=True)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.chat_memory.add_user_message(message["output"])
+        else:
+            memory.chat_memory.add_ai_message(message["output"])
 
-#     cl.user_session.set("memory", memory)
+    cl.user_session.set("memory", memory)
 
 
-# @cl.password_auth_callback
-# def auth():
-#     return cl.User(identifier="test")
-
-# @cl.password_auth_callback #
-# def auth_callback(username: str, password: str):
-#     # Fetch the user matching username from your database
-#     # and compare the hashed password with the value stored in the database
-#     if (username, password) == ("LHH", "1323"):
-#         return cl.User(
-#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
-#         )
-#     else:
-#         return None
+@cl.password_auth_callback 
+def auth_callback(username: str, password: str):
+    # Fetch the user matching username from your database
+    # and compare the hashed password with the value stored in the database
+    if (username, password) == ("LHH", "1323"):
+        return cl.User(
+            identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+        )
+    else:
+        return None
