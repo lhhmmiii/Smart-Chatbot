@@ -2,8 +2,6 @@
 
 This repository contains a chatbot application developed using [Chainlit](https://www.chainlit.io/) and various AI-powered services. This chatbot can respond to generate and edit photos, can summarize text from users, and can answer document-related questions.
 
-**Currently having a little problem because langchain's tools are only in beta.**
-
 ## ✨ Features
 
 - **Summarize Content** Upload PDF, Word, or text files, and the chatbot will summarize the content. (The chatbot is optimized for handling documents and content in Vietnamese.)
