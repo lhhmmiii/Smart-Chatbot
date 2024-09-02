@@ -8,7 +8,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
 - **Document QA:** The task of answering questions based on the content of a document using AI to understand and extract relevant information.
 - **Generative and edit image:** The process of creating or modifying images using AI based on user-provided descriptions or instructions.
 - **Question Answering:** Use current knowledge of the LLM(Gemini-1.5-flash) to answer the input from user.
-- **Search:** A search engine optimized for comprehensive, accurate, and trusted results. Useful for when you need to answer questions about current events. Input should be a search query. **(processing)**
+- **Search:** A search engine optimized for comprehensive, accurate, and trusted results. Useful for when you need to answer questions about current events. Input should be a search query.
 
 ## Chatbot components
 ![Chatbot Components](https://github.com/lhhmmiii/Smart-Chatbot/blob/main/Image/Chatbot_components.png)
@@ -91,7 +91,6 @@ Feel free to modify the `template` in `app.py` to adjust the chatbot's prompt an
 
 ## 📈 Next Steps
 
-- Done search tools
 
 ## 📧 Contact
 
