@@ -46,7 +46,6 @@ This repository contains a chatbot application developed using [Chainlit](https:
         LITERAL_API_KEY = <your_literal_api_key>
         CHAINLIT_AUTH_SECRET = <your_chainlit_auth_api_key>
         STABILITY_KEY = <your_stability_api_key>
-        
         ```
 
 ## 🚀 Usage
@@ -55,12 +54,18 @@ This repository contains a chatbot application developed using [Chainlit](https:
     ```bash
     chainlit run app.py -w
     ```
+2. Log in
 
-2. Interact with the chatbot through the interface:
+- **Acount:** LHH
+- **Password:** 1323
+
+Log in to save your chat history, ensuring you can pick up right where you left off at any time."
+
+3. Interact with the chatbot through the interface:
     - **User Input:** If you want to summarize text then put text in and add command to summarize text, same with generating and editing images. (I use agent to do this task)
     - **Document QA:** Enter any question related to the document.
 
-3. The chatbot will guide you through actions and provide summaries directly in the chat interface.
+4. The chatbot will guide you through actions and provide summaries directly in the chat interface.
 
 ## 📁 Project Structure
 
