@@ -7,8 +7,11 @@ This repository contains a chatbot application developed using [Chainlit](https:
 - **Summarize Content** Upload PDF, Word, or text files, and the chatbot will summarize the content. (The chatbot is optimized for handling documents and content in Vietnamese.)
 - **Document QA:** The task of answering questions based on the content of a document using AI to understand and extract relevant information.
 - **Generative and edit image:** The process of creating or modifying images using AI based on user-provided descriptions or instructions.
+- **Question Answering:** Use current knowledge of the LLM(Gemini-1.5-flash) to answer the input from user.
+- **Search:** A search engine optimized for comprehensive, accurate, and trusted results. Useful for when you need to answer questions about current events. Input should be a search query. **(processing)**
 
-## Pipeline
+## Chatbot components
+![Chatbot Components](https://github.com/lhhmmiii/Smart-Chatbot/blob/main/Image/Chatbot_components.png)
 
 ## 📋 Prerequisites
 
@@ -37,8 +40,13 @@ This repository contains a chatbot application developed using [Chainlit](https:
     - Create a `.env` file in the root directory.
     - Add the following API keys:
         ```plaintext
-        GEMINI_API=<your_google_genai_api_key>
-        LANGCHAIN_API_KEY=<your_langchain_api_key>
+        HUGGINGFACEHUB_API_TOKEN = <your_huggingface_api_token>
+        GEMINI_API = <your_gemini_api>
+        TAVILY_API_KEY = <your_tavily_api_key>
+        LITERAL_API_KEY = <your_literal_api_key>
+        CHAINLIT_AUTH_SECRET = <your_chainlit_auth_api_key>
+        STABILITY_KEY = <your_stability_api_key>
+        
         ```
 
 ## 🚀 Usage
@@ -59,7 +67,7 @@ This repository contains a chatbot application developed using [Chainlit](https:
 - **`app.py`:** The main entry point for the chatbot application.
 - **`Process_Document.py`:** Contains functions for document processing.
 - **`document_summarize.py`:** Summarization functions used by the chatbot.
-- **`Image/`:** Directory containing images used in the chatbot interface or generated image.
+- **`Image/`:** Directory containing images used in the chatbot interface and generated image.
 - **`tools.py`:** contain tools which agent choose
 - **`history_chatbot.py`:** history of chatbot
 - **`requirements.txt`:** List of required Python libraries.
@@ -68,9 +76,9 @@ This repository contains a chatbot application developed using [Chainlit](https:
 
 - **Chainlit:** Framework for building conversational AI applications.
 - **LangChain:** Used for handling LLM (Large Language Model) operations.
-- **Google Generative AI:** For text generation and embeddings.
 - **FAISS** Vector databases for document retrieval and similarity search.
-- **BeautifulSoup & PyPDFLoader:** For web scraping and PDF processing.
+- **PyPDFLoader:** For web scraping and PDF processing.
+
 
 ## 🎨 Customization
 
@@ -78,6 +86,7 @@ Feel free to modify the `template` in `app.py` to adjust the chatbot's prompt an
 
 ## 📈 Next Steps
 
+- Done search tools
 
 ## 📧 Contact
 
