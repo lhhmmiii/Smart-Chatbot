@@ -87,37 +87,3 @@ def conversational_chain(llm, retriever):
         output_messages_key="answer",
     )
     return conversational_rag_chain
-
-
-# conversational_rag_chain.invoke(
-#     {"input": "What is Task Decomposition?"},
-#     config={
-#         "configurable": {"session_id": "abc123"}
-#     },  # constructs a key "abc123" in `store`.
-# )["answer"]
-
-
-# # ------------------------------------------------------------------------ #
-# from langchain_core.prompts import PromptTemplate, MessagesPlaceholder, ChatPromptTemplate
-# from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableConfig
-# from langchain_core.output_parsers import StrOutputParser
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-# from langchain_community.vectorstores import FAISS
-# from langchain_community.document_loaders import WebBaseLoader
-
-
-# google_genai_api_key = os.getenv('GEMINI_API')
-# llm = ChatGoogleGenerativeAI(model = 'gemini-1.5-flash', max_retries= 2, timeout= None, max_tokens = None, api_key=google_genai_api_key)
-# loader = WebBaseLoader(
-#     web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
-# )
-# docs = loader.load()
-
-# text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-# splits = text_splitter.split_documents(docs)
-# embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key=google_genai_api_key)
-# vectordb = FAISS.from_documents(docs, embedding=embedding)
-# retriever = vectordb.as_retriever()
-
-# # ------------------------------------------------------------------------ #

@@ -18,27 +18,31 @@ import uuid
 
 ## -------------------------- Lấy api từ file .env(file này tôi sẽ không public nên các bạn từ tạo theo format sau nhé) ----------------------- ##
 '''
-HUGGINGFACEHUB_API_TOKEN = ........
-GEMINI_API = .........
-LANGCHAIN_API_KEY = .............
-TAVILY_API_KEY = ....................
-LITERAL_API_KEY = ....................
-CHAINLIT_AUTH_SECRET = ..............
+HUGGINGFACEHUB_API_TOKEN =  .....................
+GEMINI_API =  .....................
+LANGCHAIN_API_KEY = .....................
+TAVILY_API_KEY =  .....................
+LITERAL_API_KEY =  .....................
+CHAINLIT_AUTH_SECRET =  .....................
+STABILITY_KEY =  .....................
 '''
 load_dotenv()
 google_genai_api_key = os.getenv('GEMINI_API')
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+if not os.environ.get("LANGCHAIN_API_KEY"):
+    os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 
 ## ---------------------- Các action của chatbot ------------------- ##
 async def present_actions():
     actions = [
-        cl.Action(name="Summarize document", value="summarize_document", description="Summarize document"),
+        cl.Action(name="Document QA", value="Document QA", description="Document question answering"),
     ]
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
 
 
 uploaded_file = None
 ## --------------------- Đoạn chat gọi lại phần tóm tắt file PDF được đưa vào ------------------ ##
-@cl.action_callback("Summarize document")
+@cl.action_callback("Document QA")
 async def on_action(action):
     memory = cl.user_session.get("memory")
     global uploaded_file
@@ -136,7 +140,6 @@ async def on_chat_start():
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
     cl.user_session.set("action_type", "0")
-    cl.user_session.set("chat_history", [])
     await present_actions()
 
 ## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
@@ -177,14 +180,13 @@ async def on_message(message: cl.Message):
     llm = cl.user_session.get("LLM")
     session_id = cl.user_session.get("session_id")
     memory = cl.user_session.get("memory")
-    chat_history = cl.user_session.get("chat_history")
     # await cl.Message(content = f"{action_type}_{llm}_{tools}_{memory}").send()
     # Khi chưa import document
     if action_type == "0":
         tools = my_tools(llm)
         prompt = hub.pull("hwchase17/openai-functions-agent")
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent = agent, tools = tools)
+        agent_executor = AgentExecutor(agent = agent, tools = tools, verbose=True)
         agent_with_chat_history = RunnableWithMessageHistory(
             agent_executor,
             get_session_history,
@@ -237,19 +239,6 @@ async def on_message(message: cl.Message):
 
         await cl.Message(content = answer).send()
 
-    
-        # msg = cl.Message(content="")
-
-        # async for chunk in conversational_rag_chain.astream(
-        #     {"input": message.content},
-        #     config={
-        #         "configurable": {"session_id": session_id}
-        #     },
-        # ): # Tại đây sử dùng stream để tăng trải nghiệm người dùng
-        #         await msg.stream_token(chunk['answer'])
-
-        # await msg.send()
-
         memory.chat_memory.add_user_message(message.content)
         memory.chat_memory.add_ai_message(answer)
 
@@ -269,7 +258,7 @@ async def on_chat_resume(thread: ThreadDict):
     ]).send()
     model_name = settings['Model']
     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
-    cl.user_session.set("LLM",llm)
+    cl.user_session.set("LLM", llm)
     #
     memory = ConversationBufferMemory(return_messages=True)
     root_messages = [m for m in thread["steps"] if m["parentId"] == None]

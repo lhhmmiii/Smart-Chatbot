@@ -69,12 +69,10 @@ def create_image(prompt, init_image = None): # Nếu init_image = None thì là 
     return name
 
 def generate_image(prompt):
-    print("00000000000000000000000000000000000")
     img_name = create_image(prompt)
     return img_name
 
 def edit_image(prompt: str):
-    print("1111111111111111111111111111111111111111111111111")
     init_image_bytes = cl.user_session.get("image.png")
     if init_image_bytes is None:
         raise ValueError(f"Could not find image init_image_name.")
@@ -91,7 +89,7 @@ def create_chain(llm):
     """
     prompt = ChatPromptTemplate.from_messages([
         ("system", template),
-        MessagesPlaceholder("chat_history"),
+        # MessagesPlaceholder("chat_history"),
         ("user", "{input}"),
     ])
 
@@ -150,10 +148,6 @@ def my_tools(llm):
 # tools = my_tools(llm)
 # prompt = hub.pull("hwchase17/openai-functions-agent")
 # agent = create_tool_calling_agent(llm, tools, prompt)
-# agent_executor = AgentExecutor(agent=agent, tools=tools)
-# res = agent_executor.invoke({"input": "create image include black cat and dog at the beach"})
+# agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+# res = agent_executor.invoke({"input": "Hi"})
 # print(res)
-
-search = TavilySearchResults(search = 1)
-
-print(search.description)

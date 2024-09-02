@@ -12,8 +12,9 @@ def load_summarized_model(model_path = 'model\ViT-base-summarize-text'):
                                         is_trainable=False)
     return tokenizer, peft_model
 
+
 @tool
-def summarize_document(text):
+def summarize_document(text: str):
     """
     Turn long texts into brief, clear summaries, capturing key points in seconds.
     """
@@ -30,4 +31,3 @@ def summarize_document(text):
     peft_model_outputs = peft_model.generate(input_ids=input_ids, generation_config=GenerationConfig(max_new_tokens=1000, num_beans = 1))
     summarized_document = tokenizer.decode(peft_model_outputs[0], skip_special_tokens=True)
     return summarized_document
-
