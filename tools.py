@@ -153,3 +153,7 @@ def my_tools(llm):
 # agent_executor = AgentExecutor(agent=agent, tools=tools)
 # res = agent_executor.invoke({"input": "create image include black cat and dog at the beach"})
 # print(res)
+
+search = TavilySearchResults(search = 1)
+
+print(search.description)
