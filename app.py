@@ -15,6 +15,7 @@ from langchain.agents.structured_chat.prompt import SUFFIX
 from history_chatbot import *
 from tools import *
 import uuid
+from generate_related_question import *
 
 ## -------------------------- Lấy api từ file .env(file này tôi sẽ không public nên các bạn từ tạo theo format sau nhé) ----------------------- ##
 '''
@@ -39,72 +40,67 @@ async def present_actions():
     ]
     await cl.Message(content="**Hãy chọn chức năng bạn muốn thực hiện.**", actions=actions).send()
 
+# Create from document that user upload
+def create_retriever(docs, session_id):
+    embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key = google_genai_api_key)
+    vectordb = FAISS.from_documents(docs, embedding=embedding)
+    save_path = f'Database/Document/session_{session_id}'
+    vectordb.save_local(save_path)
+    retriever = vectordb.as_retriever()
+    return retriever
+
 
 uploaded_file = None
 ## --------------------- Đoạn chat gọi lại phần tóm tắt file PDF được đưa vào ------------------ ##
 @cl.action_callback("Document QA")
 async def on_action(action):
-    memory = cl.user_session.get("memory")
-    global uploaded_file
-    is_reuse = True
-    
-    # Check if a document has already been uploaded
-    if uploaded_file is not None:
-        actions = [
-            cl.Action(name="Yes", value="1", label='Có'),
-            cl.Action(name="No", value="0", label="Không")
-        ]
-        res = await cl.AskActionMessage(
-            content="Bạn có muốn sử dụng document khác?",
-            actions=actions
-        ).send()
-        if res.get("value") == "1":
-            is_reuse = False
-
     content = ""
     docs = None
-    if uploaded_file is None or not is_reuse:
-        await cl.Message(content="").send()
-        
-        files = None
-        while files is None:
-            files = await cl.AskFileMessage(content="Vui lòng đưa document vào (PDF, Word, TXT)", accept=["text/plain", "application/pdf"], timeout=180, max_size_mb=20).send()
-        
-        uploaded_file = files[0]
-        
-        if uploaded_file.type == "text/plain":
-            with open(uploaded_file.path, "r", encoding="utf-8") as f:
-                content = f.read()
-            await cl.Message(content=f"**Dưới đây là nội dung của file text:**\n{content}").send()
-        elif uploaded_file.type == "application/pdf":
-            loader = PyPDFLoader(uploaded_file.path)
-            docs = loader.load_and_split()
-            cl.user_session.set("pages", loader)
-            elements = [
-                cl.Pdf(name="PDF file", display="inline", path=uploaded_file.path)
-            ]
-            await cl.Message(content="**Dưới đây là nội dung của file PDF:**", elements=elements).send()
-            # try:  # Nếu nó chạy vộ lệnh try thì sẽ không có tóm tắt, chưa biết cách khắc phục nên tạm khóa lại
-            #     list_page_content = extract_info(uploaded_file.path)
-            #     for i, page_content in enumerate(list_page_content):
-            #         content += f'**Page {i + 1}:**\n {page_content}\n'
-            #     summarized_document_text = summarize_document(content)
-            #     await cl.Message(content=f"**Nội dung tóm tắt của document:**\n {summarized_document_text}").send()
-            # except Exception as e:
-            #     await cl.Message(content = "Xảy ra lỗi khi xử lí nội dung PDF. Tôi sẽ chỉnh sửa sau.").send()
+    files = None
+    while files is None:
+        files = await cl.AskFileMessage(content="Vui lòng đưa document vào (PDF, Word, TXT)", accept=["text/plain", "application/pdf"], timeout=180, max_size_mb=20).send()
     
-    await present_actions()
+    uploaded_file = files[0]
+
+    if uploaded_file.type == "text/plain":
+        with open(uploaded_file.path, "r", encoding="utf-8") as f:
+            content = f.read()
+        docs = text_splitter.create_documents([content])
+        await cl.Message(content=f"**Dưới đây là nội dung của file text:**\n{content}").send()
+    elif uploaded_file.type == "application/pdf":
+        loader = PyPDFLoader(uploaded_file.path)
+        docs = loader.load_and_split()
+        elements = [
+            cl.Pdf(name="PDF file", display="inline", path=uploaded_file.path)
+        ]
+        await cl.Message(content="**Dưới đây là nội dung của file PDF:**", elements=elements).send()
+        # try:  # Nếu nó chạy vộ lệnh try thì sẽ không có tóm tắt, chưa biết cách khắc phục nên tạm khóa lại
+        #     list_page_content = extract_info(uploaded_file.path)
+        #     for i, page_content in enumerate(list_page_content):
+        #         content += f'**Page {i + 1}:**\n {page_content}\n'
+        #     summarized_document_text = summarize_document(content)
+        #     await cl.Message(content=f"**Nội dung tóm tắt của document:**\n {summarized_document_text}").send()
+        # except Exception as e:
+        #     await cl.Message(content = "Xảy ra lỗi khi xử lí nội dung PDF. Tôi sẽ chỉnh sửa sau.").send()
+    
+    text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+            is_separator_regex=False,
+        )
+    session_id = cl.user_session.get("session_id")
+    retriever = create_retriever(docs, session_id)
+    # Generate questions related the document
+    generate_questions_chain = generate_question_runnables(llm, retriever)
+    msg = cl.Message(content = "")
+    async for chunk in generate_questions_chain.astream("Vietnamese"):
+        await msg.stream_token(chunk)
+    await msg.send()
     await action.remove()
     # Lưu user session
-    cl.user_session.set("content", content)
-    cl.user_session.set("file_id", uploaded_file.id)
-    cl.user_session.set("type", uploaded_file.type)
-    cl.user_session.set("docs", docs)
+    cl.user_session.set("retriever", retriever)
     cl.user_session.set("action_type", "1")
-    cl.user_session.set("is_resumne", False)
-    # Lưu docs vô memory
-    memory.chat_memory.add_user_message(docs)
-
 
 # Đặt tên session cho mỗi đoạn chat
 def create_session_id():
@@ -130,7 +126,7 @@ async def on_chat_start():
     # Ảnh bìa
     image = cl.Image(path = 'Image/chatbot.png', name = 'cover_image', display = 'inline')
     await cl.Message(
-        content="**- Chatbot có nhiệm vụ tóm tắt document và trả lời tất cả câu hỏi liên quan tới document bạn cung cấp.**\n**- Hiện tại chatbot chỉ tóm tắt các nội dung bằng Tiếng Việt.**\n**- Nếu bạn muốn hỏi về các vấn đề bên ngoài document thì vẫn cứ hỏi nhưng tôi chưa chắc thông tin đó sẽ chính xác(đừng upload document or context trước khi hỏi).**",
+        content="**Các chức năng của chatbot**\n - Trả lời những câu hỏi trong tầm kiến thức của gemini \n - Tìm kiếm những thông tin bạn muốn(bổ sung cho sự thiếu sót của LLM)\n- Trả lời tất cả câu hỏi liên quan tới document bạn cung cấp.\n - Tóm tắt nội dung bạn cung cấp bằng Tiếng Việt.\n- Sinh ảnh và chỉnh sửa ảnh\n",
         elements=[image],
     ).send()
     model_name = settings['Model']
@@ -140,31 +136,10 @@ async def on_chat_start():
     cl.user_session.set("LLM", llm)
     cl.user_session.set("session_id", session_id)
     cl.user_session.set("action_type", "0")
-    cl.user_session.set("history_store", {})
     await present_actions()
 
-## ---------------- Lấy nội dung từ document hoặc từ người dùng nhập vào --------------------- ##
-def get_documents(text_splitter):
-    is_resume = cl.user_session.get("is_resume")
-    docs = None
-    if not is_resume:
-        file_type = cl.user_session.get("type")
-        if file_type == "text/plain":
-            document_text = cl.user_session.get("content")
-            docs = text_splitter.create_documents([document_text])
-        elif file_type == 'application/pdf':
-            docs = cl.user_session.get("docs")
-            cl.user_session.set("docs", docs)
-    return docs
 
-## --------------------- Tạo retriever từ document hoặc input từ người dùng. --------------------- ##
-def create_retriever(docs, session_id):
-    embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key = google_genai_api_key)
-    vectordb = FAISS.from_documents(docs, embedding=embedding)
-    save_path = f'Database/Document/session_{session_id}'
-    vectordb.save_local(save_path)
-    retriever = vectordb.as_retriever()
-    return retriever
+## Load vectordb from local
 
 def load_vectordb(session_id):
     embedding = GoogleGenerativeAIEmbeddings(model='models/embedding-001', google_api_key = google_genai_api_key)
@@ -181,8 +156,8 @@ async def on_message(message: cl.Message):
     llm = cl.user_session.get("LLM")
     session_id = cl.user_session.get("session_id")
     memory = cl.user_session.get("memory")
-    # await cl.Message(content = f"{action_type}_{llm}_{tools}_{memory}").send()
-    # Khi chưa import document
+    is_resume = cl.user_session.get("is_resume")
+    # Khi chưa upload document
     if action_type == "0":
         tools = my_tools(llm)
         prompt = hub.pull("hwchase17/openai-functions-agent")
@@ -218,19 +193,12 @@ async def on_message(message: cl.Message):
 
     # Khi đã import document
     elif action_type == "1":
-        text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    length_function=len,
-                    is_separator_regex=False,
-                )
-        docs = get_documents(text_splitter)
         retriever = None
-        if docs == None:
+        if is_resume:
             retriever = load_vectordb(session_id)
         else:
-            retriever = create_retriever(docs, session_id)
-        # Chain
+            retriever = cl.user_session.get("retriever")
+        # Document QA chain
         conversational_rag_chain = conversational_chain(llm, retriever)
         answer = conversational_rag_chain.invoke(
             {"input": message.content},
@@ -245,43 +213,41 @@ async def on_message(message: cl.Message):
         memory.chat_memory.add_user_message(message.content)
         memory.chat_memory.add_ai_message(answer)
 
-@cl.on_chat_resume
-async def on_chat_resume(thread: ThreadDict):
-    cl.user_session.set("is_resume", True)
-    settings = await cl.ChatSettings(
-    [
-        Select(id="Model",label="Gemini - Model",
-            values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
-            initial_index = 0,
-        ),
-        Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
-        Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
-        Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
-    ]).send()
-    model_name = settings['Model']
-    llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
-    cl.user_session.set("LLM", llm)
-    session_id = cl.user_session.get("session_id")
-    
-    #
-    memory = ConversationBufferMemory(return_messages=True)
-    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-    for message in root_messages:
-        if message["type"] == "user_message":
-            memory.chat_memory.add_user_message(message["output"])
-        else:
-            memory.chat_memory.add_ai_message(message["output"])
+# @cl.on_chat_resume
+# async def on_chat_resume(thread: ThreadDict):
+#     cl.user_session.set("is_resume", True)
+#     settings = await cl.ChatSettings(
+#     [
+#         Select(id="Model",label="Gemini - Model",
+#             values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
+#             initial_index = 0,
+#         ),
+#         Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
+#         Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
+#         Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
+#     ]).send()
+#     model_name = settings['Model']
+#     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
+#     cl.user_session.set("LLM", llm)    
+#     #
+#     memory = ConversationBufferMemory(return_messages=True)
+#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+#     for message in root_messages:
+#         if message["type"] == "user_message":
+#             memory.chat_memory.add_user_message(message["output"])
+#         else:
+#             memory.chat_memory.add_ai_message(message["output"])
 
-    cl.user_session.set("memory", memory)
+#     cl.user_session.set("memory", memory)
 
 
-@cl.password_auth_callback 
-def auth_callback(username: str, password: str):
-    # Fetch the user matching username from your database
-    # and compare the hashed password with the value stored in the database
-    if (username, password) == ("LHH", "1323"):
-        return cl.User(
-            identifier="admin", metadata={"role": "admin", "provider": "credentials"}
-        )
-    else:
-        return None
+# @cl.password_auth_callback 
+# def auth_callback(username: str, password: str):
+#     # Fetch the user matching username from your database
+#     # and compare the hashed password with the value stored in the database
+#     if (username, password) == ("LHH", "1323"):
+#         return cl.User(
+#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+#         )
+#     else:
+#         return None
