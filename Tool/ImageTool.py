@@ -7,6 +7,7 @@ from stability_sdk import client
 from langchain import hub
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import chainlit as cl
+from langchain.tools import StructuredTool, Tool
 
 os.environ["STABILITY_HOST"] = "grpc.stability.ai:443"
 stability_api_key= os.getenv("STABILITY_KEY")
@@ -67,3 +68,22 @@ def edit_image(prompt: str):
     init_image = Image.open(io.BytesIO(init_image_bytes))
     image_name = create_image(prompt, init_image)
     return image_name
+
+def image_tools():
+    generate_image_tool = Tool.from_function(
+        func = generate_image,
+        name="GenerateImage",
+        description="Useful to create an image from a text prompt.",
+        return_direct=True,
+    )
+
+    edit_image_tool = StructuredTool.from_function(
+        func=edit_image,
+        name="EditImage",
+        description="Useful to edit an image with a prompt. Works well with commands such as 'replace', 'add', 'change', 'remove'.",
+        return_direct=True,
+    )
+
+    tools = [generate_image_tool, edit_image_tool]
+
+    return tools
