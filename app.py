@@ -11,9 +11,10 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.memory import ConversationBufferMemory
 from langchain import hub
 from langchain.agents import AgentExecutor # The agent executor is the runtime for an agent. This is what actually calls the agent, executes the actions it chooses, passes the action outputs back to the agent, and repeats.
-from langchain.agents.structured_chat.prompt import SUFFIX
+from langchain.agents import create_tool_calling_agent
+from langchain_community.tools.tavily_search import TavilySearchResults
 from history_chatbot import *
-from tools import *
+from Tool import *
 import uuid
 from generate_related_question import *
 
@@ -159,7 +160,10 @@ async def on_message(message: cl.Message):
     is_resume = cl.user_session.get("is_resume")
     # Khi chưa upload document
     if action_type == "0":
-        tools = my_tools(llm)
+        search = TavilySearchResults(search = 1)
+        generateImageTool = generate_image_tool()
+        editImageTool = edit_image_tool()
+        tools = [summarize_document, search, generateImageTool, editImageTool]
         prompt = hub.pull("hwchase17/openai-functions-agent")
         agent = create_tool_calling_agent(llm, tools, prompt)
         agent_executor = AgentExecutor(agent = agent, tools = tools, verbose=True)
