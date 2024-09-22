@@ -69,7 +69,7 @@ def edit_image(prompt: str):
     image_name = create_image(prompt, init_image)
     return image_name
 
-def image_tools():
+def generate_image_tool():
     generate_image_tool = Tool.from_function(
         func = generate_image,
         name="GenerateImage",
@@ -77,6 +77,9 @@ def image_tools():
         return_direct=True,
     )
 
+    return generate_image_tool
+
+def edit_image_tool():
     edit_image_tool = StructuredTool.from_function(
         func=edit_image,
         name="EditImage",
@@ -84,6 +87,4 @@ def image_tools():
         return_direct=True,
     )
 
-    tools = [generate_image_tool, edit_image_tool]
-
-    return tools
+    return edit_image_tool
