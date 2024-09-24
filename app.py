@@ -217,41 +217,41 @@ async def on_message(message: cl.Message):
         memory.chat_memory.add_user_message(message.content)
         memory.chat_memory.add_ai_message(answer)
 
-# @cl.on_chat_resume
-# async def on_chat_resume(thread: ThreadDict):
-#     cl.user_session.set("is_resume", True)
-#     settings = await cl.ChatSettings(
-#     [
-#         Select(id="Model",label="Gemini - Model",
-#             values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
-#             initial_index = 0,
-#         ),
-#         Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
-#         Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
-#         Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
-#     ]).send()
-#     model_name = settings['Model']
-#     llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
-#     cl.user_session.set("LLM", llm)    
-#     #
-#     memory = ConversationBufferMemory(return_messages=True)
-#     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
-#     for message in root_messages:
-#         if message["type"] == "user_message":
-#             memory.chat_memory.add_user_message(message["output"])
-#         else:
-#             memory.chat_memory.add_ai_message(message["output"])
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    cl.user_session.set("is_resume", True)
+    settings = await cl.ChatSettings(
+    [
+        Select(id="Model",label="Gemini - Model",
+            values = ['gemini-1.5-flash', 'gemini-1.5-flash'],
+            initial_index = 0,
+        ),
+        Slider(id = "Temperature", label = "temperature", initial = 1, min = 0, max = 1, step = 0.05),
+        Slider(id="Top-k",label = "Top-k", initial = 1, min = 1, max = 100, step = 1),
+        Slider(id="Top-p",label = "Top-p",initial = 1, min = 0,max = 1,step = 0.02),
+    ]).send()
+    model_name = settings['Model']
+    llm = ChatGoogleGenerativeAI(model = model_name, max_retries= 2, timeout= None, max_tokens = None, google_api_key=google_genai_api_key)
+    cl.user_session.set("LLM", llm)    
+    #
+    memory = ConversationBufferMemory(return_messages=True)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.chat_memory.add_user_message(message["output"])
+        else:
+            memory.chat_memory.add_ai_message(message["output"])
 
-#     cl.user_session.set("memory", memory)
+    cl.user_session.set("memory", memory)
 
 
-# @cl.password_auth_callback 
-# def auth_callback(username: str, password: str):
-#     # Fetch the user matching username from your database
-#     # and compare the hashed password with the value stored in the database
-#     if (username, password) == ("LHH", "1323"):
-#         return cl.User(
-#             identifier="admin", metadata={"role": "admin", "provider": "credentials"}
-#         )
-#     else:
-#         return None
+@cl.password_auth_callback 
+def auth_callback(username: str, password: str):
+    # Fetch the user matching username from your database
+    # and compare the hashed password with the value stored in the database
+    if (username, password) == ("LHH", "1323"):
+        return cl.User(
+            identifier="admin", metadata={"role": "admin", "provider": "credentials"}
+        )
+    else:
+        return None
